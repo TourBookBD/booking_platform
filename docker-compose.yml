@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:14-alpine # Using a lightweight PostgreSQL image
+    container_name: tourbook_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:${DB_PORT}" # Map container port to host port
+    volumes:
+      - pgdata:/var/lib/postgresql/data # Persist data even if container stops/removes
+
+volumes:
+  pgdata: # Named volume for data persistence
