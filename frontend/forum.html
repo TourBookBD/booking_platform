@@ -571,7 +571,10 @@
          * Renders the details of the current service.
          * @param {object} service - The service object.
          */
+        
+        
         function renderServiceDetails(service) {
+        console.log(service)
             serviceImage.src = service.image || 'https://placehold.co/800x400/cccccc/333333?text=No+Image';
             serviceName.textContent = service.name;
             serviceType.textContent = service.type.charAt(0).toUpperCase() + service.type.slice(1);
