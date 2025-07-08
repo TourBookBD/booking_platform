@@ -831,6 +831,11 @@
             } else if (service.type === 'transport') {
                 priceUnitText = 'person'; // Changed from 'day' to 'person' for transport
             }
+
+            // Display average rating and review count
+            const avgRating = service.averageRating ? service.averageRating.toFixed(1) : 'N/A';
+            const reviewCount = service.reviewCount !== undefined ? service.reviewCount : 0;
+            const reviewText = reviewCount === 1 ? 'review' : 'reviews';
             
             card.innerHTML = `
                 <img src="${service.image}" alt="${service.name}" class="w-full h-48 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/400x200/cccccc/333333?text=No+Image';">
@@ -843,7 +848,8 @@
                     <p class="text-gray-700 mb-4">${service.description}</p>
                     <div class="flex items-center mb-4">
                         <span class="text-yellow-500">★</span>
-                        <span class="text-gray-600 ml-1">${service.rating ? service.rating.toFixed(1) : 'N/A'}</span>
+                        <span class="text-gray-600 ml-1">${avgRating}</span>
+                        <span class="text-gray-500 text-sm ml-1">(${reviewCount} ${reviewText})</span>
                         <span class="text-2xl font-bold text-gray-800 ml-auto">$${service.price ? service.price.toFixed(2) : '0.00'}</span>
                         <span class="text-gray-600 text-sm">/${priceUnitText}</span>
                     </div>
@@ -851,6 +857,9 @@
                         <button data-service-id="${service.id}" class="book-btn btn-primary text-white px-4 py-2 rounded-md flex-1">
                             Book Now
                         </button>
+                        <a href="forum.html?serviceId=${service.id}" class="view-details-btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex-1 text-center">
+                            View Details
+                        </a>
                         ${canManage ? `
                             <button data-service-id="${service.id}" class="edit-btn bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-md">
                                 Edit
@@ -865,6 +874,7 @@
             
             // Add event listeners directly to buttons within the card
             card.querySelector('.book-btn').addEventListener('click', () => bookService(service.id));
+            // The 'View Details' button is an <a> tag, so it handles navigation directly via href
             if (canManage) {
                 card.querySelector('.edit-btn').addEventListener('click', () => editService(service.id));
                 card.querySelector('.delete-btn').addEventListener('click', () => confirmDeleteService(service.id));
@@ -1273,6 +1283,20 @@
                 });
             });
         }
+
+        async function updateBookingStatus(bookingId, newStatus) {
+            try {
+                await fetchWithAuth(`${API_BASE_URL}/bookings/${bookingId}/status`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: newStatus })
+                });
+                showNotification(`Booking ${bookingId.substring(0,8)}... status updated to ${newStatus}!`, 'success');
+                await fetchBusinessBookings(); // Refresh business bookings
+            } catch (error) {
+                showNotification(`Failed to update booking status: ${error.message}`, 'error');
+            }
+        }
+
 
         // --- Service Management Functions (Connected to Backend) ---
 

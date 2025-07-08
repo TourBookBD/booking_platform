@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Reviews - TourBook</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+            transform: translateY(-2px);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .form-input {
+            transition: all 0.3s ease;
+        }
+        
+        .form-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            animation: slideIn 0.3s forwards;
+        }
+
+        .notification.success {
+            background-color: #4CAF50; /* Green */
+            color: white;
+        }
+
+        .notification.error {
+            background-color: #f44336; /* Red */
+            color: white;
+        }
+
+        .notification.info {
+            background-color: #2196F3; /* Blue */
+            color: white;
+        }
+
+        @keyframes slideIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Star rating styles */
+        .star-rating {
+            display: flex;
+            flex-direction: row-reverse; /* For CSS trick to fill stars */
+            justify-content: flex-end; /* Align stars to the right for RTL, but visually left */
+        }
+        .star-rating input {
+            display: none;
+        }
+        .star-rating label {
+            font-size: 2.5rem; /* Larger stars */
+            color: #ccc; /* Default star color */
+            cursor: pointer;
+            padding: 0 2px;
+            transition: color 0.2s;
+        }
+        .star-rating label:hover,
+        .star-rating label:hover ~ label {
+            color: #ffc107; /* Gold on hover */
+        }
+        .star-rating input:checked ~ label {
+            color: #ffc107; /* Gold when checked */
+        }
+        /* For displaying stars (read-only) */
+        .display-stars {
+            color: #ffc107; /* Gold for filled stars */
+        }
+        .display-stars .empty-star {
+            color: #ccc; /* Gray for empty stars */
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation (replicated from index.html for consistency) -->
+    <nav class="bg-white shadow-lg fixed w-full top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-gray-800 cursor-pointer" onclick="window.location.href='index.html'">TourBook</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="myBookingsNavBtn" class="hidden text-gray-600 hover:text-gray-800 px-3 py-2 rounded-md" onclick="window.location.href='index.html#mybookings'">My Bookings</button>
+                    <button id="myBusinessNavBtn" class="hidden text-gray-600 hover:text-gray-800 px-3 py-2 rounded-md" onclick="window.location.href='index.html#mybusiness'">My Business</button>
+                    
+                    <button id="loginBtn" class="text-gray-600 hover:text-gray-800 px-3 py-2 rounded-md">Login</button>
+                    <button id="registerBtn" class="btn-primary text-white px-4 py-2 rounded-md">Register</button>
+                    <div id="userMenu" class="hidden flex items-center">
+                        <span id="userName" class="text-gray-600 mr-3 font-medium"></span>
+                        <span id="userIdDisplay" class="text-gray-500 text-sm mr-3"></span>
+                        <button id="logoutBtn" class="text-red-600 hover:text-red-800 font-medium">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content for Service Details and Reviews -->
+    <div class="pt-20 py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <button onclick="window.history.back()" class="text-blue-600 hover:underline mb-6 flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Back to Services
+            </button>
+
+            <div id="serviceDetails" class="bg-white rounded-lg shadow-lg overflow-hidden mb-8 animate-fade-in">
+                <div id="serviceDetailLoading" class="p-8 text-center text-gray-600">Loading service details...</div>
+                <div id="serviceDetailContent" class="hidden">
+                    <img id="serviceImage" src="https://placehold.co/800x400/cccccc/333333?text=Service+Image" alt="Service Image" class="w-full h-64 object-cover">
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-2">
+                            <h2 id="serviceName" class="text-3xl font-bold text-gray-800"></h2>
+                            <span id="serviceType" class="text-sm px-3 py-1 bg-blue-100 text-blue-800 rounded-full"></span>
+                        </div>
+                        <p id="serviceLocation" class="text-gray-600 text-lg mb-2"></p>
+                        <p id="serviceDescription" class="text-gray-700 mb-4"></p>
+                        <div class="flex items-center mb-4">
+                            <span class="text-yellow-500 text-xl">★</span>
+                            <span id="serviceAverageRating" class="text-gray-800 font-semibold text-xl ml-1"></span>
+                            <span id="serviceReviewCount" class="text-gray-500 text-base ml-2"></span>
+                            <span id="servicePrice" class="text-3xl font-bold text-gray-800 ml-auto"></span>
+                            <span id="servicePriceUnit" class="text-gray-600 text-base"></span>
+                        </div>
+                        <button id="bookNowButton" class="btn-primary text-white px-6 py-3 rounded-md w-full">Book Now</button>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="text-2xl font-bold text-gray-800 mb-6">User Reviews</h3>
+
+            <div id="reviewSection" class="mb-8">
+                <button id="writeReviewBtn" class="btn-primary text-white px-6 py-3 rounded-md mb-6 hidden">Write a Review</button>
+                <div id="reviewsList" class="space-y-6">
+                    <p id="noReviewsMessage" class="text-center text-gray-600 hidden">No reviews yet. Be the first to leave one!</p>
+                    <p id="loadingReviews" class="text-center text-gray-600">Loading reviews...</p>
+                    <!-- Reviews will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal (replicated from index.html) -->
+    <div id="loginModal" class="modal">
+        <div class="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800">Login</h3>
+            <form id="loginForm">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input type="email" id="loginEmail" class="form-input w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <input type="password" id="loginPassword" class="form-input w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div class="flex space-x-4">
+                    <button type="submit" class="btn-primary text-white px-4 py-2 rounded-md flex-1">Login</button>
+                    <button type="button" class="closeModal bg-gray-300 text-gray-700 px-4 py-2 rounded-md">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Modal (replicated from index.html) -->
+    <div id="registerModal" class="modal">
+        <div class="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800">Register</h3>
+            <form id="registerForm">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                    <input type="text" id="registerName" class="form-input w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input type="email" id="registerEmail" class="form-input w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <input type="password" id="registerPassword" class="form-input w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div class="mb-6">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="businessOwner" class="mr-2">
+                        <span class="text-sm text-gray-700">Register as Business Owner</span>
+                    </label>
+                </div>
+                <div class="flex space-x-4">
+                    <button type="submit" class="btn-primary text-white px-4 py-2 rounded-md flex-1">Register</button>
+                    <button type="button" class="closeModal bg-gray-300 text-gray-700 px-4 py-2 rounded-md">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Review Submission Modal -->
+    <div id="reviewModal" class="modal">
+        <div class="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800">Submit Your Review</h3>
+            <form id="reviewForm">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Rating</label>
+                    <div class="star-rating">
+                        <input type="radio" id="star5" name="rating" value="5" required /><label for="star5" title="5 stars">★</label>
+                        <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 stars">★</label>
+                        <input type="radio" id="star3" name="rating" value="3" /><label for="star3" title="3 stars">★</label>
+                        <input type="radio" id="star2" name="rating" value="2" /><label for="star2" title="2 stars">★</label>
+                        <input type="radio" id="star1" name="rating" value="1" /><label for="star1" title="1 star">★</label>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Comment (Optional)</label>
+                    <textarea id="reviewComment" class="form-input w-full px-3 py-2 border border-gray-300 rounded-md" rows="4" placeholder="Share your experience..."></textarea>
+                </div>
+                <div class="flex space-x-4">
+                    <button type="submit" class="btn-primary text-white px-4 py-2 rounded-md flex-1">Submit Review</button>
+                    <button type="button" class="closeModal bg-gray-300 text-gray-700 px-4 py-2 rounded-md">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Owner Response Modal -->
+    <div id="ownerResponseModal" class="modal">
+        <div class="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800">Respond to Review</h3>
+            <form id="ownerResponseForm">
+                <input type="hidden" id="responseReviewId">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Review Comment</label>
+                    <p id="reviewToRespondTo" class="bg-gray-100 p-3 rounded-md text-gray-700 italic"></p>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Response</label>
+                    <textarea id="ownerResponseMessage" class="form-input w-full px-3 py-2 border border-gray-300 rounded-md" rows="4" required placeholder="Type your response here..."></textarea>
+                </div>
+                <div class="flex space-x-4">
+                    <button type="submit" class="btn-primary text-white px-4 py-2 rounded-md flex-1">Submit Response</button>
+                    <button type="button" class="closeModal bg-gray-300 text-gray-700 px-4 py-2 rounded-md">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        // --- Configuration ---
+        const API_BASE_URL = 'http://localhost:5000/api'; // Your backend API base URL
+
+        // --- Application State ---
+        let currentUser = null; // Stores logged-in user data
+        let currentToken = null; // Stores JWT token
+        let currentServiceId = null; // The ID of the service being viewed on this page
+        let currentServiceDetails = null; // Stores details of the service being viewed
+        let pendingResponseReviewId = null; // Stores ID of review to respond to
+
+        // --- DOM Elements ---
+        const loginBtn = document.getElementById('loginBtn');
+        const registerBtn = document.getElementById('registerBtn');
+        const userMenu = document.getElementById('userMenu');
+        const userName = document.getElementById('userName');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const myBookingsNavBtn = document.getElementById('myBookingsNavBtn');
+        const myBusinessNavBtn = document.getElementById('myBusinessNavBtn');
+
+        // Service Details Elements
+        const serviceDetailLoading = document.getElementById('serviceDetailLoading');
+        const serviceDetailContent = document.getElementById('serviceDetailContent');
+        const serviceImage = document.getElementById('serviceImage');
+        const serviceName = document.getElementById('serviceName');
+        const serviceType = document.getElementById('serviceType');
+        const serviceLocation = document.getElementById('serviceLocation');
+        const serviceDescription = document.getElementById('serviceDescription');
+        const serviceAverageRating = document.getElementById('serviceAverageRating');
+        const serviceReviewCount = document.getElementById('serviceReviewCount');
+        const servicePrice = document.getElementById('servicePrice');
+        const servicePriceUnit = document.getElementById('servicePriceUnit');
+        const bookNowButton = document.getElementById('bookNowButton');
+
+        // Review Section Elements
+        const writeReviewBtn = document.getElementById('writeReviewBtn');
+        const reviewsList = document.getElementById('reviewsList');
+        const noReviewsMessage = document.getElementById('noReviewsMessage');
+        const loadingReviews = document.getElementById('loadingReviews');
+
+        // Modals
+        const loginModal = document.getElementById('loginModal');
+        const registerModal = document.getElementById('registerModal');
+        const reviewModal = document.getElementById('reviewModal');
+        const ownerResponseModal = document.getElementById('ownerResponseModal');
+        const closeModalBtns = document.querySelectorAll('.closeModal');
+
+        // Forms
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const reviewForm = document.getElementById('reviewForm');
+        const ownerResponseForm = document.getElementById('ownerResponseForm');
+        const responseReviewIdInput = document.getElementById('responseReviewId');
+        const reviewToRespondToDisplay = document.getElementById('reviewToRespondTo');
+        const ownerResponseMessageInput = document.getElementById('ownerResponseMessage');
+
+
+        // --- Helper Functions ---
+
+        /**
+         * Displays a temporary notification message.
+         * @param {string} message - The message to display.
+         * @param {'success'|'error'|'info'} type - The type of notification.
+         */
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'none'; // Stop slideIn animation
+                notification.style.opacity = '0'; // Start fading out
+                setTimeout(() => {
+                    notification.remove();
+                }, 300); // Remove after fade out
+            }, 3000); // Display for 3 seconds
+        }
+
+        /**
+         * Generic function to make authenticated fetch requests.
+         * @param {string} url - The API endpoint URL.
+         * @param {object} options - Fetch options (method, headers, body).
+         * @returns {Promise<object>} - The JSON response from the API.
+         */
+        async function fetchWithAuth(url, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers,
+            };
+
+            if (currentToken) {
+                headers['Authorization'] = `Bearer ${currentToken}`;
+            }
+
+            const response = await fetch(url, { ...options, headers });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ msg: 'Unknown error' }));
+                throw new Error(errorData.msg || 'Something went wrong with the API call.');
+            }
+            return response.json();
+        }
+
+        // --- Modal Functions ---
+        function openModal(modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            // Reset forms when closing modals
+            if (modal.id === 'loginModal') loginForm.reset();
+            if (modal.id === 'registerModal') registerForm.reset();
+            if (modal.id === 'reviewModal') reviewForm.reset();
+            if (modal.id === 'ownerResponseModal') {
+                ownerResponseForm.reset();
+                pendingResponseReviewId = null;
+            }
+        }
+
+        /**
+         * Updates the navigation bar based on login status and user role.
+         */
+        function updateUserInterface() {
+            if (currentUser) {
+                loginBtn.style.display = 'none';
+                registerBtn.style.display = 'none';
+                userMenu.classList.remove('hidden');
+                userName.textContent = currentUser.fullName || currentUser.email.split('@')[0];
+                userIdDisplay.textContent = `ID: ${currentUser.id.substring(0, 8)}...`; // Display first 8 chars of ID
+
+                myBookingsNavBtn.classList.remove('hidden');
+                if (currentUser.isBusinessOwner) {
+                    myBusinessNavBtn.classList.remove('hidden');
+                } else {
+                    myBusinessNavBtn.classList.add('hidden');
+                }
+                writeReviewBtn.classList.remove('hidden'); // Logged-in users can write reviews
+            } else {
+                loginBtn.style.display = 'block';
+                registerBtn.style.display = 'block';
+                userMenu.classList.add('hidden');
+                myBookingsNavBtn.classList.add('hidden');
+                myBusinessNavBtn.classList.add('hidden');
+                writeReviewBtn.classList.add('hidden'); // Only logged-in users can write reviews
+            }
+        }
+
+        // --- Authentication Functions (replicated for forum.html) ---
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const data = await fetchWithAuth(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
+                });
+
+                currentUser = data.user;
+                currentToken = data.token;
+                localStorage.setItem('tourbookToken', currentToken);
+                localStorage.setItem('tourbookUser', JSON.stringify(currentUser));
+
+                updateUserInterface();
+                closeModal(loginModal);
+                showNotification('Login successful!', 'success');
+                // After login, refresh reviews to show 'Write a Review' or 'Reply' buttons
+                await fetchServiceDetailsAndReviews(currentServiceId);
+
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const fullName = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const isBusinessOwner = document.getElementById('businessOwner').checked;
+
+            try {
+                const data = await fetchWithAuth(`${API_BASE_URL}/auth/register`, {
+                    method: 'POST',
+                    body: JSON.stringify({ fullName, email, password, isBusinessOwner })
+                });
+
+                currentUser = data.user;
+                currentToken = data.token;
+                localStorage.setItem('tourbookToken', currentToken);
+                localStorage.setItem('tourbookUser', JSON.stringify(currentUser));
+
+                updateUserInterface();
+                closeModal(registerModal);
+                showNotification('Registration successful! You are now logged in.', 'success');
+                // After registration, refresh reviews to show 'Write a Review' or 'Reply' buttons
+                await fetchServiceDetailsAndReviews(currentServiceId);
+
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            currentToken = null;
+            localStorage.removeItem('tourbookToken');
+            localStorage.removeItem('tourbookUser');
+            updateUserInterface();
+            showNotification('Logged out successfully!', 'info');
+            // After logout, refresh reviews to hide 'Write a Review' or 'Reply' buttons
+            fetchServiceDetailsAndReviews(currentServiceId); // No await needed, just trigger refresh
+        }
+
+        // --- Service Details and Reviews Fetching ---
+
+        /**
+         * Parses the service ID from the URL query parameters.
+         * @returns {string|null} The service ID or null if not found.
+         */
+        function getServiceIdFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('serviceId');
+        }
+
+        /**
+         * Fetches service details and all reviews for the current service.
+         * @param {string} serviceId - The ID of the service to fetch.
+         */
+        async function fetchServiceDetailsAndReviews(serviceId) {
+            console.log('Attempting to fetch details for serviceId:', serviceId); // Debug log
+            serviceDetailLoading.classList.remove('hidden');
+            serviceDetailContent.classList.add('hidden');
+            loadingReviews.classList.remove('hidden');
+            reviewsList.innerHTML = ''; // Clear existing reviews
+            noReviewsMessage.classList.add('hidden');
+
+            try {
+                // Fetch service details
+                const service = await fetchWithAuth(`${API_BASE_URL}/services/${serviceId}`, { method: 'GET' });
+                currentServiceDetails = service; // Store for later use (e.g., booking)
+                if (service) {
+                    renderServiceDetails(service);
+                } else {
+                    console.warn('Service details not found for ID:', serviceId);
+                    serviceDetailLoading.textContent = 'Service details not found.';
+                    serviceDetailLoading.classList.remove('hidden');
+                    serviceDetailContent.classList.add('hidden');
+                }
+
+
+                // Fetch reviews for this service
+                const reviews = await fetchWithAuth(`${API_BASE_URL}/reviews/service/${serviceId}`, { method: 'GET' });
+                if (reviews) {
+                    renderReviews(reviews);
+                } else {
+                    console.warn('No reviews found for service ID:', serviceId);
+                    noReviewsMessage.classList.remove('hidden');
+                }
+
+
+            } catch (error) {
+                console.error('Error fetching service details or reviews:', error); // Detailed error log
+                showNotification(`Failed to load service details or reviews: ${error.message}`, 'error');
+                serviceDetailLoading.textContent = `Failed to load service details: ${error.message}`;
+                loadingReviews.textContent = `Failed to load reviews: ${error.message}`;
+            } finally {
+                serviceDetailLoading.classList.add('hidden');
+                serviceDetailContent.classList.remove('hidden');
+                loadingReviews.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Renders the details of the current service.
+         * @param {object} service - The service object.
+         */
+        function renderServiceDetails(service) {
+            serviceImage.src = service.image || 'https://placehold.co/800x400/cccccc/333333?text=No+Image';
+            serviceName.textContent = service.name;
+            serviceType.textContent = service.type.charAt(0).toUpperCase() + service.type.slice(1);
+            serviceLocation.textContent = service.location;
+            serviceDescription.textContent = service.description;
+
+            const avgRating = service.averageRating ? service.averageRating.toFixed(1) : 'N/A';
+            const reviewCount = service.reviewCount !== undefined ? service.reviewCount : 0;
+            const reviewText = reviewCount === 1 ? 'review' : 'reviews';
+
+            serviceAverageRating.textContent = avgRating;
+            serviceReviewCount.textContent = `(${reviewCount} ${reviewText})`;
+            servicePrice.textContent = `$${service.price ? service.price.toFixed(2) : '0.00'}`;
+
+            let priceUnitText = 'night';
+            if (service.type === 'restaurants') {
+                priceUnitText = 'person';
+            } else if (service.type === 'transport') {
+                priceUnitText = 'person';
+            }
+            servicePriceUnit.textContent = `/${priceUnitText}`;
+        }
+
+        /**
+         * Renders the list of reviews for the current service.
+         * @param {Array<object>} reviews - An array of review objects.
+         */
+        function renderReviews(reviews) {
+            reviewsList.innerHTML = ''; // Clear previous reviews
+            if (reviews.length === 0) {
+                noReviewsMessage.classList.remove('hidden');
+                return;
+            }
+            noReviewsMessage.classList.add('hidden');
+
+            reviews.forEach(review => {
+                const reviewCard = document.createElement('div');
+                reviewCard.className = 'bg-white p-6 rounded-lg shadow-md';
+                
+                const reviewerName = review.user ? (review.user.fullName || review.user.email.split('@')[0]) : 'Anonymous User';
+                const reviewDate = new Date(review.createdAt).toLocaleDateString();
+                const canRespond = currentUser && currentUser.isBusinessOwner && currentServiceDetails && currentServiceDetails.ownerId === currentUser.id;
+
+                reviewCard.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center">
+                            <span class="font-semibold text-gray-800">${reviewerName}</span>
+                            <span class="text-gray-500 text-sm ml-3">${reviewDate}</span>
+                        </div>
+                        <div class="display-stars text-xl">
+                            ${'★'.repeat(review.rating)}<span class="empty-star">${'★'.repeat(5 - review.rating)}</span>
+                        </div>
+                    </div>
+                    <p class="text-gray-700 mb-3">${review.comment || 'No comment provided.'}</p>
+                    ${review.ownerResponse ? `
+                        <div class="bg-blue-50 p-3 rounded-md border-l-4 border-blue-200 mt-3">
+                            <p class="font-semibold text-blue-800 mb-1">Owner Response:</p>
+                            <p class="text-blue-700 italic">${review.ownerResponse}</p>
+                        </div>
+                    ` : ''}
+                    ${canRespond && !review.ownerResponse ? `
+                        <button data-review-id="${review.id}" data-review-comment="${review.comment || 'No comment provided.'}" class="reply-btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm mt-3">
+                            Reply as Owner
+                        </button>
+                    ` : ''}
+                `;
+                reviewsList.appendChild(reviewCard);
+
+                if (canRespond && !review.ownerResponse) {
+                    reviewCard.querySelector('.reply-btn').addEventListener('click', (e) => {
+                        const reviewId = e.target.dataset.reviewId;
+                        const reviewComment = e.target.dataset.reviewComment;
+                        openOwnerResponseModal(reviewId, reviewComment);
+                    });
+                }
+            });
+        }
+
+        // --- Review Submission ---
+
+        async function handleSubmitReview(e) {
+            e.preventDefault();
+            const ratingInput = document.querySelector('input[name="rating"]:checked');
+            const rating = ratingInput ? parseInt(ratingInput.value) : null; // Handle case where no rating is selected
+            const comment = document.getElementById('reviewComment').value;
+
+            if (!rating) {
+                showNotification('Please select a rating (1-5 stars).', 'error');
+                return;
+            }
+
+            if (!currentServiceId) {
+                showNotification('Error: No service selected for review.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetchWithAuth(`${API_BASE_URL}/reviews`, {
+                    method: 'POST',
+                    body: JSON.stringify({ serviceId: currentServiceId, rating, comment })
+                });
+                
+                closeModal(reviewModal);
+                showNotification('Review submitted successfully!', 'success');
+                // Re-fetch service details and reviews to update UI
+                await fetchServiceDetailsAndReviews(currentServiceId);
+
+            } catch (error) {
+                showNotification(`Failed to submit review: ${error.message}`, 'error');
+            }
+        }
+
+        // --- Owner Response ---
+
+        function openOwnerResponseModal(reviewId, reviewComment) {
+            pendingResponseReviewId = reviewId;
+            responseReviewIdInput.value = reviewId;
+            reviewToRespondToDisplay.textContent = `"${reviewComment}"`;
+            ownerResponseMessageInput.value = ''; // Clear previous response
+            openModal(ownerResponseModal);
+        }
+
+        async function handleSubmitOwnerResponse(e) {
+            e.preventDefault();
+            const reviewId = document.getElementById('responseReviewId').value;
+            const ownerResponse = document.getElementById('ownerResponseMessage').value;
+
+            if (!reviewId || !ownerResponse) {
+                showNotification('Review ID and response are required.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetchWithAuth(`${API_BASE_URL}/reviews/${reviewId}/response`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ ownerResponse })
+                });
+
+                closeModal(ownerResponseModal);
+                showNotification('Response submitted successfully!', 'success');
+                // Re-fetch reviews to show the new owner response
+                await fetchServiceDetailsAndReviews(currentServiceId);
+
+            } catch (error) {
+                showNotification(`Failed to submit response: ${error.message}`, 'error');
+            }
+        }
+
+
+        // --- Event Listeners ---
+        function setupEventListeners() {
+            // Navigation buttons
+            loginBtn.addEventListener('click', () => openModal(loginModal));
+            registerBtn.addEventListener('click', () => openModal(registerModal));
+            logoutBtn.addEventListener('click', logout);
+
+            // Modal Close
+            closeModalBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    closeModal(e.target.closest('.modal'));
+                });
+            });
+
+            // Forms
+            loginForm.addEventListener('submit', handleLogin);
+            registerForm.addEventListener('submit', handleRegister);
+            reviewForm.addEventListener('submit', handleSubmitReview);
+            ownerResponseForm.addEventListener('submit', handleSubmitOwnerResponse);
+
+            // Write Review Button
+            writeReviewBtn.addEventListener('click', () => {
+                if (!currentUser) {
+                    showNotification('Please login to write a review!', 'info');
+                    openModal(loginModal);
+                } else {
+                    openModal(reviewModal);
+                }
+            });
+
+            // Book Now button on this page
+            bookNowButton.addEventListener('click', () => {
+                // This logic is simplified; in a real app, you'd likely navigate to a booking page
+                // or open a booking modal similar to the one on index.html.
+                // For now, we'll just show a notification.
+                if (currentUser) {
+                    showNotification(`Booking functionality for "${currentServiceDetails.name}" would go here!`, 'info');
+                    // You could potentially redirect back to index.html with a pre-filled booking modal
+                    // window.location.href = `index.html#bookService=${currentServiceDetails.id}`;
+                } else {
+                    showNotification('Please login to book this service!', 'error');
+                    openModal(loginModal);
+                }
+            });
+
+            // Close modals on outside click
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal')) {
+                    closeModal(e.target);
+                }
+            });
+        }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            setupEventListeners();
+            // This function is now correctly defined within the global scope of this script.
+            // If you still see the error, it's a caching issue.
+            function checkAuthStatus() {
+                const storedToken = localStorage.getItem('tourbookToken');
+                const storedUser = localStorage.getItem('tourbookUser');
+
+                if (storedToken && storedUser) {
+                    try {
+                        currentUser = JSON.parse(storedUser);
+                        currentToken = storedToken;
+                        updateUserInterface();
+                    } catch (error) {
+                        console.error('Failed to parse stored user data:', error);
+                        logout(); // Clear corrupted data
+                    }
+                } else {
+                    updateUserInterface(); // Ensure UI is in logged-out state
+                }
+            }
+
+            checkAuthStatus(); // Call it here
+            
+            currentServiceId = getServiceIdFromUrl();
+            if (currentServiceId) {
+                await fetchServiceDetailsAndReviews(currentServiceId);
+            } else {
+                showNotification('No service selected. Please go back to the home page.', 'error');
+                serviceDetailLoading.textContent = 'No service selected.';
+                loadingReviews.textContent = ''; // Hide loading reviews message
+            }
+        });
+    </script>
+</body>
+</html>
